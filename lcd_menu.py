@@ -1,5 +1,7 @@
 from picolcd.picolcd import *
 
+import uasyncio as asyncio
+
 #!!!!!!!!!----------------
 
 # There are 5 hardware functions
@@ -16,11 +18,23 @@ class LCD_Menu:
         self.numMenuItems=4
         self.lastButton=-1
         self.LCD = LCD
+        self.line1 = "title"
+        self.line2 = "line1"
+        self.line3 = "line2"
+        self.line4 = "line3"
+        self.line5 = "line4"
+        #================================
+        self.stack = []  # For storing position in menu
+        self.current =  None  # The b=object currently handling events
+        self.menu_data = {} # For getting data out of the menu
+        self.task = None   # This holds a task for asyncio
 
     def initMenu(self, bgColor, borderColor, textColor):
+        self.bgColor = bgColor
+        self.borderColor = borderColor
+        self.textColor = textColor
         self.LCD.fill(bgColor)
         self.LCD.show()
-        self.textColor = textColor
         self.LCD.hline(10,10,220,borderColor)
         self.LCD.hline(10,125,220,borderColor)
         self.LCD.vline(10,10,115,borderColor)
@@ -29,13 +43,21 @@ class LCD_Menu:
         self.LCD.text("BACK",195,110,self.textColor)
                 
     def display(self,cursor, line1,line2,line3,line4,line5):
-        self.LCD.text("   "+line1,90,20,self.textColor)
-        self.LCD.text("   "+line2,90,40,self.textColor)
-        self.LCD.text("   "+line3,90,60,self.textColor)
-        self.LCD.text("   "+line4,90,80,self.textColor)
-        self.LCD.text("   "+line5,90,100,self.textColor)
-        self.LCD.text(" * ",90,((cursor+1)*20),self.textColor)
+        self.LCD.fill_rect(11,11,180,100,self.bgColor)
+        self.LCD.text("   "+line1,10,20,self.textColor)
+        self.LCD.text("   "+line2,10,40,self.textColor)
+        self.LCD.text("   "+line3,10,60,self.textColor)
+        self.LCD.text("   "+line4,10,80,self.textColor)
+        self.LCD.text("   "+line5,10,100,self.textColor)
+        self.LCD.text(" * ",10,((cursor+2)*20),self.textColor)
         self.LCD.show()
+        
+    def setCurrentMenu(self, line1,line2,line3,line4,line5):
+        self.line1 = line1
+        self.line2 = line2
+        self.line3 = line3
+        self.line4 = line4
+        self.line5 = line5
         
     def initKeys(self,select,back,up,down):
         self.select = select
@@ -43,6 +65,20 @@ class LCD_Menu:
         self.up = up
         self.down = down
     
+    #Little utility function to avoid some module definitions
+    def set_data(self, key,value):
+        self.menu_data[key]=value
+        print ('setting',self.menu_data)
+        
+    #This is taken from Peter Hinch's tutorial
+    def set_global_exception():
+        def handle_exception(loop, context):
+            import sys
+            sys.print_exception(context["exception"])
+            sys.exit()
+        loop = asyncio.get_event_loop()
+        loop.set_exception_handler(handle_exception)
+
     def run(self):
         while(1):
             if(self.select.value() == 0):
@@ -68,7 +104,6 @@ class LCD_Menu:
 
             if(self.up.value() == 0):#上
                 if(self.lastButton != 2):
-                    self.LCD.fill_rect(37,35,20,20,self.LCD.red)
                     print("UP")
                     self.currentMenuItem-=1
                     self.currentMenuItem=self.currentMenuItem%self.numMenuItems
@@ -77,13 +112,9 @@ class LCD_Menu:
             else :
                 if(self.lastButton == 2):
                     self.lastButton = -1
-                self.LCD.fill_rect(37,35,20,20,self.LCD.white)
-                self.LCD.rect(37,35,20,20,self.LCD.red)
                 
             if(self.down.value() == 0):#下
                 if(self.lastButton != 5):
-                    self.LCD.fill_rect(37,85,20,20,self.LCD.red)
-                    print("DOWN")
                     self.currentMenuItem+=1
                     self.currentMenuItem=self.currentMenuItem%self.numMenuItems
                     print(self.currentMenuItem)
@@ -91,8 +122,6 @@ class LCD_Menu:
             else :
                 if(self.lastButton == 5):
                     self.lastButton = -1
-                self.LCD.fill_rect(37,85,20,20,self.LCD.white)
-                self.LCD.rect(37,85,20,20,self.LCD.red)
-                
+            self.display(self.currentMenuItem,self.line1,self.line2,self.line3,self.line4,self.line5)
             self.LCD.show()
 
