@@ -92,6 +92,7 @@ def mainloop():
 
     while True:
         led(not led())
+        step()
         await step()
         
 def run_async(func):
