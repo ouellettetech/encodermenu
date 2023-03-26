@@ -1,10 +1,10 @@
 
 
 #import math
-from machine import Pin, I2C
-import ssd1306
+from machine import Pin
 import sys
 import time
+from picolcd import LCD_1inch14
 
 import uasyncio as asyncio
 
@@ -12,26 +12,29 @@ import uasyncio as asyncio
 #import _thread
 
 #This section may need to be modified to suit your hardware
-from rotary_irq_pico  import RotaryIRQ
+#from rotary_irq_pico  import RotaryIRQ
 #import uasyncio as asyncio
 
-button = Pin(18,Pin.IN,Pin.PULL_DOWN)
+#button = Pin(18,Pin.IN,Pin.PULL_DOWN)
 
-
-i2c = I2C(0, scl=Pin(17), sda=Pin(16))
 
 led = Pin(25,Pin.OUT)
 
-oled = ssd1306.SSD1306_I2C(128, 64, i2c)
+oled = LCD_1inch14()
 
-encoder = RotaryIRQ(pin_num_clk=12, 
-              pin_num_dt=13, 
-              min_val=0, 
-              max_val=100, 
-              reverse=False, 
-              range_mode=RotaryIRQ.RANGE_WRAP,
-              pull_up=True)
+encoder_value=0
 
+button = Pin(15,Pin.IN,Pin.PULL_UP)
+backButton = Pin(17,Pin.IN,Pin.PULL_UP)
+
+keyUp = Pin(2 ,Pin.IN,Pin.PULL_UP)#UP
+keyCenter = Pin(3 ,Pin.IN,Pin.PULL_UP)#CENTER
+keyLeft = Pin(16 ,Pin.IN,Pin.PULL_UP)#LEFT
+keyDown = Pin(18 ,Pin.IN,Pin.PULL_UP)#DOWN
+keyRight = Pin(20 ,Pin.IN,Pin.PULL_UP)#RIGHT
+
+encoder_min = 0
+encoder_max = 100
 led = Pin(25,Pin.OUT)
 
 #!!!!!!!!!----------------
@@ -51,11 +54,12 @@ def display(text1,text2):
     oled.show() 
     
 def value():
-    return encoder._value
+    return encoder_value
 
 def set_encoder(value,min_value,max_value):
-    encoder._value = value
-    encoder.set(value,min_value,max_value)
+    encoder_value = value
+    encoder_min = min_value
+    encoder_max = max_value
     
 
 #================================
@@ -107,24 +111,58 @@ def run_menu():
     
 
 old_v = -1 #inital scroll values so first usage forces an event
-old_switch = button() # same for button
+old_switch = button.value() # same for button
+old_up = keyUp.value() 
+old_down = keyDown.value()
+old_back = backButton.value()
 
 async def step():
     """Poll for scroll and switch events
     """
-    global old_v,old_switch
-    enc_v = value()
     
+    global old_v,old_switch,old_up,old_down,encoder_value,old_back
+    enc_v = value()
+        
     if enc_v != old_v:
         current.on_scroll(enc_v)
         old_v = enc_v
         
-    sw_v = button()
+    sw_v = button.value()
     if sw_v != old_switch:
-        if sw_v:
+        if (sw_v == 0):
+            print("button clicked")
             current.on_click()
         old_switch = sw_v
         await asyncio.sleep_ms(250)  # determined by trial error - debounces switch
+    
+    up_v = keyUp.value()
+    if up_v != old_up:
+        if (up_v == 0):
+            print("up clicked")
+            encoder_value-=1
+            if(encoder_value<encoder_min):
+                encoder_value=encoder_max
+        old_up = up_v
+        await asyncio.sleep_ms(250)  # determined by trial error - debounces switch
+
+    down_v = keyDown.value()
+    if down_v != old_down:
+        if (down_v == 0):
+            print("down clicked")
+            encoder_value+=1
+            if(encoder_value>encoder_max):
+                encoder_value=encoder_min
+        old_down = down_v
+        await asyncio.sleep_ms(250)  # determined by trial error - debounces switch
+
+    back_v = backButton.value()
+    if back_v != old_back:
+        if (back_v == 0):
+            print("back clicked")
+            back()
+        old_back = back_v
+        await asyncio.sleep_ms(250)  # determined by trial error - debounces switch
+    
     await asyncio.sleep(0)  #play nicely with others
     
 #===============================
@@ -214,7 +252,7 @@ class GetInteger():
             data_v = 0
         data_v = self.low_v if data_v < self.low_v else data_v
         data_v = self.high_v if data_v > self.high_v else data_v
-        encoder._value = data_v
+        encoder_value = data_v
         self.value = data_v
         
       
@@ -232,7 +270,7 @@ class GetInteger():
     def on_current(self):
         "Make sure encode is set properly, set up data and display"
         self.get_initial_value()
-        print('get_int',menu_data,self.value,encoder.value())
+        print('get_int',menu_data,self.value,encoder_value)
         set_encoder(self.value,self.low_v,self.high_v)
         display(self.caption,str(self.value * self.increment))
 

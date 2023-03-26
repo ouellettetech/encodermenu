@@ -17,18 +17,18 @@ from encoder_menu import *
 #Good practive says we should import each function but it is a bit verbose
 #from encoder_menu import get_integer,info,selection,wizard,wrap_menu,menu_data,dummy,back,run_menu,set_data
 
-
-# Neopixels are used as an example.
-# In real life your  functions would go in their own different module
-from neopixel import *
-
 # ORDER MATTERS!!
 #We have to define things before they can be  used
 
 #Define our default data values first
 
-
-
+print("Hello World")
+red   =   0x07E0
+green =   0x001f
+blue  =   0xf800
+white =   0xffff
+black =   0x0000
+yellow =  0xf81f
 
 set_data('hour',12)
 set_data('minute',30)
@@ -79,9 +79,9 @@ datewizard = wizard([('Years',setyears),("Months",setmonths),("Days",setdays)])
 
 
 trees     = wrap_menu( [('gum',dummy),('tea-tree',dummy),('red-gum count',dummy),('willow',dummy),('Back!',back)])
-patterns  = wrap_menu( [('Chaser',yellow),('Show colour',showcolour),('Blue',ablue),('Rainbow',rainbow),('Back!',back)])
+patterns  = wrap_menu( [('Chaser',yellow),('Blue',blue),('Rainbow',red),('Back!',back)])
 main_menu = wrap_menu( [('Patterns',patterns),('trees',trees),('Brightness',brightness)])
-pixels = wrap_menu([('Show color',showcolour)])
+pixels = wrap_menu([('Back!',back)])
 settime = wrap_menu( [('Time wizard',timewizard),('Date wizard',datewizard),('Write to clock',setclockinfo),
                       ('Show datetime',datetimeinfo),("Back..",back)])
 
