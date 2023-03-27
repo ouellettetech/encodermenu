@@ -17,25 +17,100 @@ import uasyncio as asyncio
 
 #button = Pin(18,Pin.IN,Pin.PULL_DOWN)
 
+class ControllerState():
+    NONE = 0
+    SELECT = 1
+    BACK = 2
+    SCROLL = 3
 
+class Controller:
+    button = Pin(15,Pin.IN,Pin.PULL_UP)
+    back_button = Pin(17,Pin.IN,Pin.PULL_UP)
+
+    keyUp = Pin(2 ,Pin.IN,Pin.PULL_UP)#UP
+    keyCenter = Pin(3 ,Pin.IN,Pin.PULL_UP)#CENTER
+    keyLeft = Pin(16 ,Pin.IN,Pin.PULL_UP)#LEFT
+    keyDown = Pin(18 ,Pin.IN,Pin.PULL_UP)#DOWN
+    keyRight = Pin(20 ,Pin.IN,Pin.PULL_UP)#RIGHT
+
+    def __init__(self, default_value, min=0, max=100, swap_direction=False):
+        self.current_value = default_value
+        self.min_value = min
+        self.max_value = max
+        self.swap_direction = swap_direction #swap directions so thaUp goes down, but int values goes up.
+        self.old_value = -1 #inital scroll values so first usage forces an event
+        self.old_switch = self.button.value() # same for button
+        self.old_up = self.keyUp.value() 
+        self.old_down = self.keyDown.value()
+        self.old_back = self.back_button.value()
+        
+    def value(self):
+        print("Getting current Value: ")
+        print(self.current_value)
+        return self.current_value
+    
+    def set_value(self, value, min_value = 0,max_value = 100, swap_direction = False):
+        self.current_value = value
+        self.min_value = min_value
+        self.max_value = max_value
+        
+    def get_state(self):
+        """Poll for scroll and switch events
+        """
+        
+        if(self.swap_direction):
+            decrese = self.keyUp
+            increase = self.keyDown
+        else:
+            increase = self.keyUp
+            decrese = self.keyDown
+        
+        sw_v = self.button.value()
+        if sw_v != self.old_switch:
+            self.old_switch = sw_v
+            if (sw_v == 0):
+                print("button clicked")
+                return ControllerState.SELECT
+            
+        up_v = increase.value()
+        if up_v != self.old_up:
+            self.old_up = up_v
+            if (up_v == 0):
+                print("up clicked")
+                print(self.current_value)
+                print(self.max_value)
+                self.current_value+=1
+                if(self.current_value>self.max_value):
+                    self.current_value=self.min_value
+                return ControllerState.SCROLL
+
+        down_v = decrese.value()
+        if down_v != self.old_down:
+            self.old_down = down_v
+            if (down_v == 0):
+                print("down clicked")
+                print(self.current_value)
+                print(self.min_value)
+                self.current_value-=1
+                if(self.current_value<self.min_value):
+                    self.current_value=self.max_value                
+                return ControllerState.SCROLL
+
+        back_v = self.back_button.value()
+        if back_v != self.old_back:
+            self.old_back = back_v
+            if (back_v == 0):
+                print("back clicked")
+                return ControllerState.BACK
+        return ControllerState.NONE    
+        
 led = Pin(25,Pin.OUT)
 
 oled = LCD_1inch14()
 
-encoder_value=0
-
-button = Pin(15,Pin.IN,Pin.PULL_UP)
-backButton = Pin(17,Pin.IN,Pin.PULL_UP)
-
-keyUp = Pin(2 ,Pin.IN,Pin.PULL_UP)#UP
-keyCenter = Pin(3 ,Pin.IN,Pin.PULL_UP)#CENTER
-keyLeft = Pin(16 ,Pin.IN,Pin.PULL_UP)#LEFT
-keyDown = Pin(18 ,Pin.IN,Pin.PULL_UP)#DOWN
-keyRight = Pin(20 ,Pin.IN,Pin.PULL_UP)#RIGHT
-
-encoder_min = 0
-encoder_max = 100
 led = Pin(25,Pin.OUT)
+
+controller = Controller(0)
 
 #!!!!!!!!!----------------
 
@@ -52,14 +127,6 @@ def display(text1,text2):
     oled.text(text1,0,0)
     oled.text(text2,0,30)
     oled.show() 
-    
-def value():
-    return encoder_value
-
-def set_encoder(value,min_value,max_value):
-    encoder_value = value
-    encoder_min = min_value
-    encoder_max = max_value
     
 
 #================================
@@ -108,59 +175,19 @@ def run_async(func):
 def run_menu():
     #convenience function so we dont need module references or global
     run_async(mainloop)
-    
-
-old_v = -1 #inital scroll values so first usage forces an event
-old_switch = button.value() # same for button
-old_up = keyUp.value() 
-old_down = keyDown.value()
-old_back = backButton.value()
 
 async def step():
     """Poll for scroll and switch events
     """
+    button_state = controller.get_state()
     
-    global old_v,old_switch,old_up,old_down,encoder_value,old_back
-    enc_v = value()
-        
-    if enc_v != old_v:
-        current.on_scroll(enc_v)
-        old_v = enc_v
-        
-    sw_v = button.value()
-    if sw_v != old_switch:
-        if (sw_v == 0):
-            print("button clicked")
-            current.on_click()
-        old_switch = sw_v
-        await asyncio.sleep_ms(250)  # determined by trial error - debounces switch
-    
-    up_v = keyUp.value()
-    if up_v != old_up:
-        if (up_v == 0):
-            print("up clicked")
-            encoder_value-=1
-            if(encoder_value<encoder_min):
-                encoder_value=encoder_max
-        old_up = up_v
-        await asyncio.sleep_ms(250)  # determined by trial error - debounces switch
-
-    down_v = keyDown.value()
-    if down_v != old_down:
-        if (down_v == 0):
-            print("down clicked")
-            encoder_value+=1
-            if(encoder_value>encoder_max):
-                encoder_value=encoder_min
-        old_down = down_v
-        await asyncio.sleep_ms(250)  # determined by trial error - debounces switch
-
-    back_v = backButton.value()
-    if back_v != old_back:
-        if (back_v == 0):
-            print("back clicked")
-            back()
-        old_back = back_v
+    if button_state == ControllerState.SELECT:
+        current.on_click()
+    elif button_state == ControllerState.BACK:
+        back()
+    elif button_state == ControllerState.SCROLL:
+        current.on_scroll(controller.value())
+    else: 
         await asyncio.sleep_ms(250)  # determined by trial error - debounces switch
     
     await asyncio.sleep(0)  #play nicely with others
@@ -225,8 +252,8 @@ class Menu():
         (self.menu[self.index][1])()
     
     def on_current(self):
-        "Set (and fix if necessary) the index"           
-        set_encoder(self.index,0,len(self.menu)-1)        
+        "Set (and fix if necessary) the index"
+        controller.set_value(self.index,0,len(self.menu)-1, swap_direction=True)        
         display('', self.menu[self.index][0])
         
         
@@ -252,13 +279,17 @@ class GetInteger():
             data_v = 0
         data_v = self.low_v if data_v < self.low_v else data_v
         data_v = self.high_v if data_v > self.high_v else data_v
-        encoder_value = data_v
+        controller.set_value(data_v, swap_direction=False)
         self.value = data_v
         
       
     def on_scroll(self,val):
         "Change the value displayed as we scroll"
         self.value = val
+        print("Value: ")
+        print(val)
+        print("Increment: ")
+        print(self.increment)
         display(self.caption,str(val * self.increment))
             
     def on_click(self):
@@ -270,8 +301,8 @@ class GetInteger():
     def on_current(self):
         "Make sure encode is set properly, set up data and display"
         self.get_initial_value()
-        print('get_int',menu_data,self.value,encoder_value)
-        set_encoder(self.value,self.low_v,self.high_v)
+        print('get_int',menu_data,self.value, controller.value())
+        controller.set_value(self.value,self.low_v,self.high_v,False)
         display(self.caption,str(self.value * self.increment))
 
 
@@ -381,7 +412,7 @@ class Selection():
         
     def on_current(self):
         self.set_initial_value()
-        set_encoder(self.index,0,len(self.choice)-1)
+        controller.set_value(self.index,0,len(self.choice)-1, swap_direction=True)
         display('',self.choice[self.index][0])
         
 #===================================
