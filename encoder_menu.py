@@ -6,6 +6,9 @@ import sys
 import time
 from picolcd import LCD_1inch14
 
+from writer import Writer
+import freesans20  # Font to use
+
 import uasyncio as asyncio
 
 #from guimenu importMenu
@@ -112,6 +115,9 @@ led = Pin(25,Pin.OUT)
 
 controller = Controller(0)
 
+wri = Writer(oled, freesans20)  # verbose = False to suppress console output
+Writer.set_textpos(oled, 0, 0)  # In case a previous test has altered this
+wri.printstring('Sunday\n12 Aug 2018\n10.30am')
 #!!!!!!!!!----------------
 
 # There are 5 hardware functions
@@ -124,8 +130,13 @@ controller = Controller(0)
 
 def display(text1,text2):
     oled.fill(0)
-    oled.text(text1,0,0)
-    oled.text(text2,0,30)
+    # oled.text(text1,0,0)
+    # oled.text(text2,0,30)
+    wri = Writer(oled, freesans20)  # verbose = False to suppress console output
+    Writer.set_textpos(oled, 0, 0)  # In case a previous test has altered this
+    wri.printstring(text1)
+    wri.printstring('\n')
+    wri.printstring(text2)
     oled.show() 
     
 
@@ -363,8 +374,11 @@ class Info():
         
     def on_current(self):
         oled.fill(0)
+        wri = Writer(oled, freesans20)  # verbose = False to suppress console output
+        Writer.set_textpos(oled, 0, 0)  # In case a previous test has altered this
         for i,a in enumerate(self.message.split('\n')):
-            oled.text(a,0,i*12)
+            wri.printstring(a)
+            wri.printstring('\n')
         oled.show()
         
 class Selection():
