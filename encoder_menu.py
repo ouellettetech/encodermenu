@@ -27,6 +27,34 @@ class ControllerState():
     SCROLL = 3
 
 class Controller:
+    def value(self):
+        return 0
+    
+    def set_value(self, value, min_value = 0,max_value = 100, swap_direction = False):
+        pass
+        
+    def get_state(self):
+        return ControllerState.NONE
+    
+class DisplayController:
+    def display(menu_lines):
+        pass
+
+class LED114Controller(DisplayController):
+    def __init__(self):
+        self.oled = LCD_1inch14()
+
+    def display(self, menu_lines):
+        self.oled.fill(0)
+        wri = Writer(self.oled, freesans20)  # verbose = False to suppress console output
+        Writer.set_textpos(self.oled, 0, 0)  # In case a previous test has altered this
+        for a in menu_lines:
+            wri.printstring(a)
+            wri.printstring('\n')
+        self.oled.show()
+        
+
+class SevenButtonController(Controller):
     button = Pin(15,Pin.IN,Pin.PULL_UP)
     back_button = Pin(17,Pin.IN,Pin.PULL_UP)
 
@@ -106,18 +134,13 @@ class Controller:
                 print("back clicked")
                 return ControllerState.BACK
         return ControllerState.NONE    
-        
-led = Pin(25,Pin.OUT)
 
-oled = LCD_1inch14()
+oled_controller = LED114Controller()
 
 led = Pin(25,Pin.OUT)
 
-controller = Controller(0)
+controller = SevenButtonController(0)
 
-wri = Writer(oled, freesans20)  # verbose = False to suppress console output
-Writer.set_textpos(oled, 0, 0)  # In case a previous test has altered this
-wri.printstring('Sunday\n12 Aug 2018\n10.30am')
 #!!!!!!!!!----------------
 
 # There are 5 hardware functions
@@ -127,18 +150,6 @@ wri.printstring('Sunday\n12 Aug 2018\n10.30am')
 # 4. Setup the encoder, so that encoder values are sensible
 # 5. Set a flashing led as a heart beat for main loop (optional)
 # If you get these functions to work there should be no hardware
-
-def display(text1,text2):
-    oled.fill(0)
-    # oled.text(text1,0,0)
-    # oled.text(text2,0,30)
-    wri = Writer(oled, freesans20)  # verbose = False to suppress console output
-    Writer.set_textpos(oled, 0, 0)  # In case a previous test has altered this
-    wri.printstring(text1)
-    wri.printstring('\n')
-    wri.printstring(text2)
-    oled.show() 
-    
 
 #================================
 stack = []  # For storing position in menu
@@ -256,7 +267,8 @@ class Menu():
     def on_scroll(self,value):
         "Just show the caption"
         self.index = value
-        display('', self.menu[value][0])
+        global oled_controller
+        oled_controller.display(['', self.menu[value][0]])
         
     def on_click(self):
         "Execute the menu item's function"
@@ -264,8 +276,9 @@ class Menu():
     
     def on_current(self):
         "Set (and fix if necessary) the index"
-        controller.set_value(self.index,0,len(self.menu)-1, swap_direction=True)        
-        display('', self.menu[self.index][0])
+        controller.set_value(self.index,0,len(self.menu)-1, swap_direction=True)
+        global oled_controller
+        oled_controller.display(['', self.menu[self.index][0]])
         
         
 class GetInteger():
@@ -301,7 +314,8 @@ class GetInteger():
         print(val)
         print("Increment: ")
         print(self.increment)
-        display(self.caption,str(val * self.increment))
+        global oled_controller
+        oled_controller.display([self.caption,str(val * self.increment)])
             
     def on_click(self):
         global menu_data
@@ -314,7 +328,8 @@ class GetInteger():
         self.get_initial_value()
         print('get_int',menu_data,self.value, controller.value())
         controller.set_value(self.value,self.low_v,self.high_v,False)
-        display(self.caption,str(self.value * self.increment))
+        global oled_controller
+        oled_controller.display([self.caption,str(self.value * self.increment)])
 
 
         
@@ -373,13 +388,7 @@ class Info():
         back()
         
     def on_current(self):
-        oled.fill(0)
-        wri = Writer(oled, freesans20)  # verbose = False to suppress console output
-        Writer.set_textpos(oled, 0, 0)  # In case a previous test has altered this
-        for i,a in enumerate(self.message.split('\n')):
-            wri.printstring(a)
-            wri.printstring('\n')
-        oled.show()
+        oled_controller.display(self.message.split('\n'))
         
 class Selection():
     "Return a string value from a menu like selection"
@@ -415,7 +424,8 @@ class Selection():
 
     def on_scroll(self,val):
         self.index = val
-        display('',self.choice[self.index][0])
+        global oled_controller
+        oled_controller.display(['',self.choice[self.index][0]])
         
         
     def on_click(self):
@@ -427,7 +437,8 @@ class Selection():
     def on_current(self):
         self.set_initial_value()
         controller.set_value(self.index,0,len(self.choice)-1, swap_direction=True)
-        display('',self.choice[self.index][0])
+        global oled_controller
+        oled_controller.display(['',self.choice[self.index][0]])
         
 #===================================
 # Functions for defining menus
