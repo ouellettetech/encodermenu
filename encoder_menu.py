@@ -4,10 +4,6 @@
 from machine import Pin
 import sys
 import time
-from picolcd import LCD_1inch14
-
-from writer import Writer
-import freesans20  # Font to use
 
 import uasyncio as asyncio
 

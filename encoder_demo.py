@@ -17,6 +17,11 @@ from encoder_menu import *
 #Good practive says we should import each function but it is a bit verbose
 #from encoder_menu import get_integer,info,selection,wizard,wrap_menu,menu_data,dummy,back,run_menu,set_data
 
+import freesans20  # Font to use
+from picolcd import LCD_1inch14
+
+from writer import Writer
+
 
 
 #Input buttons controller
