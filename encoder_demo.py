@@ -17,6 +17,107 @@ from encoder_menu import *
 #Good practive says we should import each function but it is a bit verbose
 #from encoder_menu import get_integer,info,selection,wizard,wrap_menu,menu_data,dummy,back,run_menu,set_data
 
+
+
+#Input buttons controller
+
+class SevenButtonController(Controller):
+    button = Pin(15,Pin.IN,Pin.PULL_UP)
+    back_button = Pin(17,Pin.IN,Pin.PULL_UP)
+
+    keyUp = Pin(2 ,Pin.IN,Pin.PULL_UP)#UP
+    keyCenter = Pin(3 ,Pin.IN,Pin.PULL_UP)#CENTER
+    keyLeft = Pin(16 ,Pin.IN,Pin.PULL_UP)#LEFT
+    keyDown = Pin(18 ,Pin.IN,Pin.PULL_UP)#DOWN
+    keyRight = Pin(20 ,Pin.IN,Pin.PULL_UP)#RIGHT
+
+    def __init__(self, default_value, min=0, max=100, swap_direction=False):
+        self.current_value = default_value
+        self.min_value = min
+        self.max_value = max
+        self.swap_direction = swap_direction #swap directions so thaUp goes down, but int values goes up.
+        self.old_value = -1 #inital scroll values so first usage forces an event
+        self.old_switch = self.button.value() # same for button
+        self.old_up = self.keyUp.value() 
+        self.old_down = self.keyDown.value()
+        self.old_back = self.back_button.value()
+        
+    def value(self):
+        print("Getting current Value: ")
+        print(self.current_value)
+        return self.current_value
+    
+    def set_value(self, value, min_value = 0,max_value = 100, swap_direction = False):
+        self.current_value = value
+        self.min_value = min_value
+        self.max_value = max_value
+        
+    def get_state(self):
+        """Poll for scroll and switch events
+        """
+        
+        if(self.swap_direction):
+            decrese = self.keyUp
+            increase = self.keyDown
+        else:
+            increase = self.keyUp
+            decrese = self.keyDown
+        
+        sw_v = self.button.value()
+        if sw_v != self.old_switch:
+            self.old_switch = sw_v
+            if (sw_v == 0):
+                print("button clicked")
+                return ControllerState.SELECT
+            
+        up_v = increase.value()
+        if up_v != self.old_up:
+            self.old_up = up_v
+            if (up_v == 0):
+                print("up clicked")
+                print(self.current_value)
+                print(self.max_value)
+                self.current_value+=1
+                if(self.current_value>self.max_value):
+                    self.current_value=self.min_value
+                return ControllerState.SCROLL
+
+        down_v = decrese.value()
+        if down_v != self.old_down:
+            self.old_down = down_v
+            if (down_v == 0):
+                print("down clicked")
+                print(self.current_value)
+                print(self.min_value)
+                self.current_value-=1
+                if(self.current_value<self.min_value):
+                    self.current_value=self.max_value                
+                return ControllerState.SCROLL
+
+        back_v = self.back_button.value()
+        if back_v != self.old_back:
+            self.old_back = back_v
+            if (back_v == 0):
+                print("back clicked")
+                return ControllerState.BACK
+        return ControllerState.NONE
+
+# Display Controller
+class LED114Controller(DisplayController):
+    def __init__(self):
+        self.oled = LCD_1inch14()
+
+    def display(self, menu_lines):
+        self.oled.fill(0)
+        wri = Writer(self.oled, freesans20)  # verbose = False to suppress console output
+        Writer.set_textpos(self.oled, 0, 0)  # In case a previous test has altered this
+        for a in menu_lines:
+            wri.printstring(a)
+            wri.printstring('\n')
+        self.oled.show()
+
+
+
 # ORDER MATTERS!!
 #We have to define things before they can be  used
 
@@ -29,6 +130,12 @@ blue  =   0xf800
 white =   0xffff
 black =   0x0000
 yellow =  0xf81f
+
+oled_controller = LED114Controller()
+input_controller = SevenButtonController(0)
+
+set_display_controller(oled_controller)
+set_input_controller(input_controller)
 
 set_data('hour',12)
 set_data('minute',30)
